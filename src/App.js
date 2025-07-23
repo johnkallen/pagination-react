@@ -145,6 +145,11 @@ function App() {
               Page <strong>{page.toLocaleString()}</strong> of <strong>{totalPages.toLocaleString()}</strong>
             </span>
           )}
+          {method === "keyset" && (
+            <span className="text-gray-600">
+              &#x200B;
+            </span>
+          )}
           <span className="text-gray-600">
             Request duration: <strong>{duration.toLocaleString()} ms</strong>
           </span>
