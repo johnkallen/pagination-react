@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { MoonLoader } from "react-spinners";
 import axios from "axios";
 
 function App() {
@@ -16,25 +17,32 @@ function App() {
   const [cursorArray, setCursorArray] = useState([]);
   const [pageSize, setPageSize] = useState(10);
 
+  const localString = (value) => {
+    // console.log("value: " + value);
+    return value.toLocaleString();
+  } 
+
   const fetchData = async () => {
     setLoading(true);
     setError("");
     try {
       const params = method.startsWith("keyset") ? { method, cursorId, pageSize } : { method, page, pageSize };
-      console.log("params:"+ JSON.stringify(params) + "  cursorArray:" + cursorArray);
-      // Before making next call, capture ID of first element of the previous page
+      // console.log("params:"+ JSON.stringify(params) + "  cursorArray:" + cursorArray);
+      // Before making next call, determine if the method has changed
       if (prevMethod !== method) {
         setPrevMethod(method);
         if (method.startsWith("keyset")) {
           setCursorArray([]);
         }
       }
+      setDuration("- - - - - -"); // blank out duration during API call
       const res = await axios.get("http://localhost:3001/api/pagination", { params });
       setData(res.data.data);
-      setDuration(res.data.durationMs);
+      setDuration(res.data.durationMs.toLocaleString() + " ms");
       if (method.startsWith("keyset")) {
         const lastUser = res.data.data[res.data.data.length - 1];
         setLastUserId(lastUser.id);
+        if (res.data.totalPages !==undefined && res.data.totalPages !== 0) setTotalPages(res.data.totalPages);
       } else if (res.data.totalPages) {
         setTotalPages(res.data.totalPages);
       }
@@ -162,25 +170,33 @@ function App() {
         <div className="flex justify-between items-center mb-4">
           {!method.startsWith("keyset") && (
             <span className="text-gray-600">
-              Page <strong>{page.toLocaleString()}</strong> of <strong>{totalPages.toLocaleString()}</strong>
+              Page <strong>{localString(page)}</strong> of <strong>{localString(totalPages)}</strong>
             </span>
           )}
           {method === "keyset" && (
             <span className="text-gray-600">
-              Page <strong>{(cursorArray.length + 1).toLocaleString()}</strong> of <strong>?</strong>
+              Page <strong>{localString(cursorArray.length + 1)}</strong> of <strong>?</strong>
             </span>
           )}
           {method === "keysetPages" && (
             <span className="text-gray-600">
-              Page <strong>{(cursorArray.length + 1).toLocaleString()}</strong> of <strong>{totalPages.toLocaleString()}</strong>
+              Page <strong>{localString(cursorArray.length + 1)}</strong> of <strong>{localString(totalPages)}</strong>
             </span>
           )}
           <span className="text-gray-600">
-            Request duration: <strong>{duration.toLocaleString()} ms</strong>
+            Request duration: <strong>{duration.toLocaleString()}</strong>
           </span>
         </div>
-
-        {loading && <p className="text-blue-500 text-center">Loading...</p>}
+          
+        {loading && <p className="" style={{ padding: '70px', placeItems: 'center'}}>
+          <MoonLoader
+            color={"#2B68BE"}
+            loading={loading}
+            size={100}
+            aria-label="Loading Spinner"
+            data-testid="loader"
+          />
+          </p>}
         {!loading && <p className="text-blue-500 text-center">&#x200B;</p>}
         {error && <p className="text-red-500 text-center">{error}</p>}
 
@@ -262,6 +278,7 @@ function App() {
             setPageSize(newPageSize);
             setPage(1); // Reset to page 1 on size change
             setCursorId(null);
+            setCursorArray([]);
           }}
           className="border px-2 py-1 rounded"
         >
