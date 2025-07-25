@@ -19,7 +19,7 @@ function App() {
     setError("");
     try {
       const params = method === "keyset" ? { method, cursorId } : { method, page };
-      console.log("params:"+ JSON.stringify(params));
+      // console.log("params:"+ JSON.stringify(params));
       const res = await axios.get("http://localhost:3001/api/pagination", { params });
       setData(res.data.data);
       setDuration(res.data.durationMs);
@@ -57,7 +57,7 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-6">
+    <div className="min-h-screen bg-gray-100 flex  justify-center p-6">
       <div className="bg-white shadow-md rounded-xl p-8 w-full max-w-5xl">
         <div className="mb-8">
           <h2 className="text-xl font-semibold mb-2 text-center">Pagination Methods: Pros and Cons</h2>
@@ -66,6 +66,7 @@ function App() {
             <li><strong>Keyset:</strong> Fast and efficient for large datasets. Requires a unique column (e.g., ID) and doesn't support jumping to arbitrary pages.</li>
             <li><strong>Join:</strong> Supports complex data fetching. Slower due to table joins and extra processing.</li>
             <li><strong>RowNum:</strong> Works well with database-specific optimizations. May not be portable across DB engines.</li>
+            <li><strong>Materialized View:</strong> Greatly speeds up expensive queries with pre-joined indexed data. Needs manual refreshing and data may be stale.</li>
           </ul>
         </div>
 
@@ -88,6 +89,7 @@ function App() {
             <option value="keyset">Keyset</option>
             <option value="join">Join</option>
             <option value="rowNum">RowNum</option>
+            <option value="materialized">Materialized</option>
           </select>
 
           <button
@@ -159,7 +161,7 @@ function App() {
         {!loading && <p className="text-blue-500 text-center">&#x200B;</p>}
         {error && <p className="text-red-500 text-center">{error}</p>}
 
-        <table className="table-auto w-full border">
+        {!loading && (method !== "join" &&  method !== "materialized") && <table className="table-auto w-full border">
           <thead>
             <tr className="bg-gray-200">
               <th className="border px-4 py-2">ID</th>
@@ -176,7 +178,58 @@ function App() {
               </tr>
             ))}
           </tbody>
-        </table>
+        </table>}
+        {!loading && method === "join" && <table className="table-auto w-full border">
+          <thead>
+            <tr className="bg-gray-200">
+              <th className="border px-4 py-2">ID</th>
+              <th className="border px-4 py-2">Username</th>
+              <th className="border px-4 py-2">City</th>
+              <th className="border px-4 py-2">Phone</th>
+              <th className="border px-4 py-2">Created At</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.map((user) => (
+              <tr key={user.id} className="hover:bg-gray-100">
+                <td className="border px-4 py-2 text-center">{user.id}</td>
+                <td className="border px-4 py-2">{user.username}</td>
+                <td className="border px-4 py-2">{user.phone}</td>
+                <td className="border px-4 py-2">{user.city}</td>
+                
+                <td className="border px-4 py-2">{new Date(user.createdAt).toLocaleString()}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>}
+        {!loading && method === "materialized" && <table className="table-auto w-full border">
+          <thead>
+            <tr className="bg-gray-200">
+              <th className="border px-4 py-2">ID</th>
+              <th className="border px-4 py-2">Username</th>
+              <th className="border px-4 py-2">Phone</th>
+              <th className="border px-4 py-2">Street</th>
+              <th className="border px-4 py-2">City</th>
+              <th className="border px-4 py-2">State</th>
+              <th className="border px-4 py-2">Zip Code</th>
+              <th className="border px-4 py-2">Created At</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.map((user) => (
+              <tr key={user.id} className="hover:bg-gray-100">
+                <td className="border px-4 py-2 text-center">{user.id}</td>
+                <td className="border px-4 py-2">{user.username}</td>
+                <td className="border px-4 py-2">{user.phone}</td>
+                <td className="border px-4 py-2">{user.street}</td>
+                <td className="border px-4 py-2">{user.city}</td>
+                <td className="border px-4 py-2">{user.state}</td>
+                <td className="border px-4 py-2">{user.zipCode}</td>
+                <td className="border px-4 py-2">{new Date(user.createdAt).toLocaleString()}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>}
       </div>
     </div>
   );
