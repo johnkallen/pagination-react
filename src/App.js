@@ -20,19 +20,19 @@ function App() {
     setLoading(true);
     setError("");
     try {
-      const params = method === "keyset" ? { method, cursorId, pageSize } : { method, page, pageSize };
+      const params = method.startsWith("keyset") ? { method, cursorId, pageSize } : { method, page, pageSize };
       console.log("params:"+ JSON.stringify(params) + "  cursorArray:" + cursorArray);
       // Before making next call, capture ID of first element of the previous page
       if (prevMethod !== method) {
         setPrevMethod(method);
-        if (method === "keyset") {
+        if (method.startsWith("keyset")) {
           setCursorArray([]);
         }
       }
       const res = await axios.get("http://localhost:3001/api/pagination", { params });
       setData(res.data.data);
       setDuration(res.data.durationMs);
-      if (method === "keyset") {
+      if (method.startsWith("keyset")) {
         const lastUser = res.data.data[res.data.data.length - 1];
         setLastUserId(lastUser.id);
       } else if (res.data.totalPages) {
@@ -96,6 +96,7 @@ function App() {
           >
             <option value="offset">Offset</option>
             <option value="keyset">Keyset</option>
+            <option value="keysetPages">Keyset w/PageCount</option>
             <option value="join">Join</option>
             <option value="rowNum">RowNum</option>
             <option value="materialized">MV Offset Query</option>
@@ -104,7 +105,7 @@ function App() {
           <button
             className="bg-blue-500 text-white px-4 py-2 rounded disabled:opacity-50"
             onClick={() => {
-              if (method === "keyset") {
+              if (method.startsWith("keyset")) {
                 const tempArray = cursorArray;
                 const prevCursor = tempArray.pop(); // get and remove the last cursor position
                 setCursorArray(tempArray);
@@ -113,7 +114,7 @@ function App() {
                 setPage((prev) => Math.max(prev - 1, 1));
               }
             }}
-            disabled={(method !== "keyset" && page === 1) || (method === "keyset" 
+            disabled={(!method.startsWith("keyset") && page === 1) || (method.startsWith("keyset")
               && (cursorId === null || cursorArray.length === 0))}
           >
             Prev
@@ -122,11 +123,11 @@ function App() {
           <button
             className="bg-blue-500 text-white px-4 py-2 rounded"
             onClick={() => {
-              if (method === "keyset") {
+              if (method.startsWith("keyset")) {
                 // Before making next call, capture ID of first element of the current page
                 const startCursorPos = data[0].id - 1;
                 const tempArray = cursorArray;
-                if (data.length !== 0) tempArray.push(startCursorPos); // Add to Cursor Array
+                if (data.length !== 0 && tempArray[tempArray.length - 1] !== startCursorPos) tempArray.push(startCursorPos); // Add to Cursor Array
                 setCursorArray(tempArray);
                 setCursorId(lastUserId); // triggers fetch with current cursor position
               } else {
@@ -137,7 +138,7 @@ function App() {
             Next
           </button>
 
-          {method !== "keyset" && (
+          {!method.startsWith("keyset") && (
             <>
               <label className="text-gray-700">Go to page:</label>
               <input
@@ -159,14 +160,19 @@ function App() {
         </div>
 
         <div className="flex justify-between items-center mb-4">
-          {method !== "keyset" && (
+          {!method.startsWith("keyset") && (
             <span className="text-gray-600">
               Page <strong>{page.toLocaleString()}</strong> of <strong>{totalPages.toLocaleString()}</strong>
             </span>
           )}
           {method === "keyset" && (
             <span className="text-gray-600">
-              &#x200B;
+              Page <strong>{(cursorArray.length + 1).toLocaleString()}</strong> of <strong>?</strong>
+            </span>
+          )}
+          {method === "keysetPages" && (
+            <span className="text-gray-600">
+              Page <strong>{(cursorArray.length + 1).toLocaleString()}</strong> of <strong>{totalPages.toLocaleString()}</strong>
             </span>
           )}
           <span className="text-gray-600">
