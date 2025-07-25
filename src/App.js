@@ -3,6 +3,7 @@ import axios from "axios";
 
 function App() {
   const [method, setMethod] = useState("offset");
+  const [prevMethod, setPrevMethod] = useState(null);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [data, setData] = useState([]);
@@ -10,22 +11,29 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [pageInput, setPageInput] = useState(1);
-  const [startId, setStartId] = useState(null);
   const [lastUserId, setLastUserId] = useState(null);
   const [cursorId, setCursorId] = useState(null);
+  const [cursorArray, setCursorArray] = useState([]);
+  const [pageSize, setPageSize] = useState(10);
 
   const fetchData = async () => {
     setLoading(true);
     setError("");
     try {
-      const params = method === "keyset" ? { method, cursorId } : { method, page };
-      // console.log("params:"+ JSON.stringify(params));
+      const params = method === "keyset" ? { method, cursorId, pageSize } : { method, page, pageSize };
+      console.log("params:"+ JSON.stringify(params) + "  cursorArray:" + cursorArray);
+      // Before making next call, capture ID of first element of the previous page
+      if (prevMethod !== method) {
+        setPrevMethod(method);
+        if (method === "keyset") {
+          setCursorArray([]);
+        }
+      }
       const res = await axios.get("http://localhost:3001/api/pagination", { params });
       setData(res.data.data);
       setDuration(res.data.durationMs);
       if (method === "keyset") {
         const lastUser = res.data.data[res.data.data.length - 1];
-        if (startId === null) setStartId(lastUser.id - 10)
         setLastUserId(lastUser.id);
       } else if (res.data.totalPages) {
         setTotalPages(res.data.totalPages);
@@ -43,7 +51,7 @@ function App() {
       setPageInput(page);
     }
     // eslint-disable-next-line
-  }, [method, page, cursorId]);
+  }, [method, page, cursorId, pageSize]);
 
   const handlePageInputChange = (e) => {
     const val = parseInt(e.target.value);
@@ -83,26 +91,30 @@ function App() {
               setMethod(e.target.value);
               setPage(1);
               setCursorId(null);
+              setData([]);
             }}
           >
             <option value="offset">Offset</option>
             <option value="keyset">Keyset</option>
             <option value="join">Join</option>
             <option value="rowNum">RowNum</option>
-            <option value="materialized">Materialized</option>
+            <option value="materialized">MV Offset Query</option>
           </select>
 
           <button
             className="bg-blue-500 text-white px-4 py-2 rounded disabled:opacity-50"
             onClick={() => {
               if (method === "keyset") {
-                setCursorId(cursorId - 10); // triggers fetch
+                const tempArray = cursorArray;
+                const prevCursor = tempArray.pop(); // get and remove the last cursor position
+                setCursorArray(tempArray);
+                setCursorId(prevCursor); // triggers fetch
               } else {
                 setPage((prev) => Math.max(prev - 1, 1));
               }
             }}
             disabled={(method !== "keyset" && page === 1) || (method === "keyset" 
-              && (cursorId === null || cursorId === startId))}
+              && (cursorId === null || cursorArray.length === 0))}
           >
             Prev
           </button>
@@ -111,7 +123,12 @@ function App() {
             className="bg-blue-500 text-white px-4 py-2 rounded"
             onClick={() => {
               if (method === "keyset") {
-                setCursorId(lastUserId); // triggers fetch
+                // Before making next call, capture ID of first element of the current page
+                const startCursorPos = data[0].id - 1;
+                const tempArray = cursorArray;
+                if (data.length !== 0) tempArray.push(startCursorPos); // Add to Cursor Array
+                setCursorArray(tempArray);
+                setCursorId(lastUserId); // triggers fetch with current cursor position
               } else {
                 setPage((prev) => Math.min(prev + 1, totalPages));
               }
@@ -129,7 +146,7 @@ function App() {
                 max={totalPages}
                 value={pageInput}
                 onChange={handlePageInputChange}
-                className="border p-2 rounded w-30"
+                className="border p-2 rounded w-50"
               />
               <button
                 className="bg-green-500 text-white px-3 py-2 rounded"
@@ -230,6 +247,24 @@ function App() {
             ))}
           </tbody>
         </table>}
+        <label htmlFor="pageSize" className="mr-2 font-semibold">Rows per page:</label>
+        <select
+          id="changePageSize"
+          value={pageSize}
+          onChange={(e) => {
+            const newPageSize = parseInt(e.target.value);
+            setPageSize(newPageSize);
+            setPage(1); // Reset to page 1 on size change
+            setCursorId(null);
+          }}
+          className="border px-2 py-1 rounded"
+        >
+          {[5, 10, 25, 50].map((size) => (
+            <option key={size} value={size}>
+              {size}
+            </option>
+          ))}
+        </select>
       </div>
     </div>
   );
